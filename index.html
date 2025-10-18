@@ -585,7 +585,7 @@
             <a href="https://phonalab.com" class="logo">🔬 Phonalab</a>
             <nav class="nav-links">
                 <a href="https://phonalab.com">Home</a>
-                <a href="https://analyzer.phonalab.com">Voice Analyzer</a>
+                <a href="https://app.phonalab.com">Voice Analyzer</a>
                 <a href="https://pitch.phonalab.com">Pitch Visualizer</a>
                 <a href="https://phonalab.com#about">About</a>
                 <a href="https://forms.gle/oZvWFGcHwr7VFNRAA" target="_blank">Feedback</a>
@@ -839,10 +839,13 @@
                 }
 
                 const data = await response.json();
+                console.log('API Response:', data);
+                
                 displayResults(data);
                 
             } catch (error) {
                 console.error('Analysis error:', error);
+                loadingSection.style.display = 'none';
                 alert('Analysis error: ' + error.message);
             } finally {
                 loadingSection.style.display = 'none';
@@ -852,11 +855,15 @@
         }
 
         function displayResults(data) {
-            const f0Mean = data.f0.mean;
+            // Extract F0 data from nested structure
+            const f0Mean = data.f0.mean || 0;
             const f0Min = data.f0.min || f0Mean * 0.7;
             const f0Max = data.f0.max || f0Mean * 1.3;
             const f0Range = f0Max - f0Min;
 
+            console.log('F0 values:', { f0Mean, f0Min, f0Max, f0Range });
+
+            // Update statistics
             document.getElementById('meanPitch').innerHTML = 
                 `${Math.round(f0Mean)}<span class="result-unit">Hz</span>`;
             document.getElementById('pitchRange').innerHTML = 

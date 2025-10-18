@@ -857,6 +857,9 @@
         function displayResults(data) {
             // Debug: log the f0 object structure
             console.log('F0 object:', data.f0);
+            console.log('F0 keys:', Object.keys(data.f0));
+            console.log('Does contour exist?', 'contour' in data.f0);
+            console.log('Contour value:', data.f0.contour);
             
             // Extract F0 data from nested structure
             const f0Mean = data.f0.mean || data.f0.Mean || 0;

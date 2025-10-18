@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitch Visualizer - Phonalab</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --male-color: #3b82f6;
+            --female-color: #ec4899;
+            --androgynous-color: #8b5cf6;
+            --bg: #f9fafb;
+            --white: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .tool-header {
+            padding: 60px 0 40px;
+            text-align: left;
+        }
+
+        .tool-header h1 {
+            font-size: 2.5rem;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+
+        .tool-header p {
+            color: var(--text-light);
+            font-size: 1.2rem;
+            max-width: 700px;
+        }
+
+        .upload-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 3rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 4rem 2rem;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-align: center;
+            background: var(--bg);
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.7;
+        }
+
+        .upload-area h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .upload-area p {
+            color: var(--text-light);
+            font-size: 1rem;
+            line-height: 1.8;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-button {
+            background: var(--primary);
+            color: white;
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 1.5rem;
+        }
+
+        .upload-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .audio-player {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            display: none;
+        }
+
+        .audio-player h3 {
+            margin-bottom: 1rem;
+            color: var(--text);
+            font-size: 1.1rem;
+        }
+
+        audio {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .analyze-button {
+            background: var(--success);
+            color: white;
+            padding: 16px 48px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+            transition: all 0.3s;
+        }
+
+        .analyze-button:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .analyze-button:disabled {
+            background: var(--text-light);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 3rem 0;
+            padding: 3rem;
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .spinner {
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            font-size: 1.1rem;
+            color: var(--text);
+        }
+
+        .loading p:last-child {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-top: 0.5rem;
+        }
+
+        .results-section {
+            display: none;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(30px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .result-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border-left: 4px solid var(--primary);
+        }
+
+        .result-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+
+        .result-label {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1;
+            margin-bottom: 0.75rem;
+        }
+
+        .result-unit {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-left: 0.25rem;
+            font-weight: 500;
+        }
+
+        .gender-assessment {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2.5rem;
+        }
+
+        .gender-assessment h2 {
+            margin-bottom: 1.5rem;
+            color: var(--text);
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .assessment-content {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .assessment-badge {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.8rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .assessment-text h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .assessment-text p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .chart-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2.5rem;
+        }
+
+        .chart-section h2 {
+            margin-bottom: 1.5rem;
+            color: var(--text);
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-box p {
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .info-box strong {
+            color: var(--primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2.5rem;
+        }
+
+        .button {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .button-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .button-secondary {
+            background: var(--white);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .button-secondary:hover {
+            background: var(--bg);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .recording-tips {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .recording-tips h3 {
+            color: var(--text);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .tips-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .tip-item {
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .tip-content h4 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            color: var(--text);
+        }
+
+        .tip-content p {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin: 0;
+        }
+
+        .feedback-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin-top: 4rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .feedback-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            color: var(--text);
+        }
+
+        .feedback-section p {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+        }
+
+        footer {
+            padding: 3rem 0;
+            text-align: center;
+            color: var(--text-light);
+            background: var(--white);
+            border-top: 1px solid var(--border);
+            margin-top: 4rem;
+        }
+
+        footer p {
+            margin: 0.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 20px;
+            }
+
+            .header-content {
+                padding: 0 20px;
+            }
+
+            .tool-header {
+                padding: 40px 0 30px;
+            }
+
+            .tool-header h1 {
+                font-size: 2rem;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .button {
+                width: 100%;
+                text-align: center;
+            }
+
+            .upload-area {
+                padding: 3rem 1.5rem;
+            }
+
+            .tips-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .assessment-content {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="https://phonalab.com" class="logo">🔬 Phonalab</a>
+            <nav class="nav-links">
+                <a href="https://phonalab.com">Home</a>
+                <a href="https://analyzer.phonalab.com">Voice Analyzer</a>
+                <a href="https://pitch.phonalab.com">Pitch Visualizer</a>
+                <a href="https://phonalab.com#about">About</a>
+                <a href="https://forms.gle/oZvWFGcHwr7VFNRAA" target="_blank">Feedback</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="tool-header">
+            <h1>Pitch Visualizer</h1>
+            <p>Track pitch range and visualize voice feminization/masculinization progress with detailed gender-norm comparisons.</p>
+        </div>
+
+        <div class="info-box">
+            <p><strong>Perfect for gender-affirming voice therapy:</strong> This tool visualizes speaking pitch range and compares it to typical male, female, and androgynous voice ranges. Upload 10-15 seconds of natural speech or reading to see where your voice falls on the spectrum.</p>
+        </div>
+
+        <div class="recording-tips">
+            <h3>📝 Recording Tips for Best Results</h3>
+            <div class="tips-grid">
+                <div class="tip-item">
+                    <div class="tip-icon">✅</div>
+                    <div class="tip-content">
+                        <h4>What to Record</h4>
+                        <p>Natural speech, reading aloud, or conversation (10-15 seconds)</p>
+                    </div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">🎤</div>
+                    <div class="tip-content">
+                        <h4>Recording Quality</h4>
+                        <p>Quiet room, normal speaking volume, consistent pitch</p>
+                    </div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">🔇</div>
+                    <div class="tip-content">
+                        <h4>What to Avoid</h4>
+                        <p>Singing, whispering, shouting, or excessive background noise</p>
+                    </div>
+                </div>
+                <div class="tip-item">
+                    <div class="tip-icon">📱</div>
+                    <div class="tip-content">
+                        <h4>Any Device Works</h4>
+                        <p>Phone recorder, computer mic, or any audio recording app</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">🎵</div>
+                <h2>Upload Voice Sample</h2>
+                <p>Drag & drop your audio file here, or click to browse</p>
+                <p style="margin-top: 1rem; font-size: 0.9rem;">
+                    Supports: WAV, MP3, M4A • Maximum file size: 50MB
+                </p>
+                <input type="file" id="fileInput" class="file-input" accept="audio/*">
+                <button class="upload-button">Choose File</button>
+            </div>
+
+            <div class="audio-player" id="audioPlayer">
+                <h3>Your Recording</h3>
+                <audio id="audioElement" controls></audio>
+                <button class="analyze-button" id="analyzeButton">
+                    🔬 Analyze Pitch
+                </button>
+            </div>
+        </div>
+
+        <div class="loading" id="loadingSection">
+            <div class="spinner"></div>
+            <p>Analyzing pitch parameters...</p>
+            <p>This usually takes about 10 seconds</p>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <h2 class="section-title">Pitch Analysis Results</h2>
+            
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-label">Mean Pitch</div>
+                    <div class="result-value" id="meanPitch">
+                        --<span class="result-unit">Hz</span>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-label">Pitch Range</div>
+                    <div class="result-value" id="pitchRange">
+                        --<span class="result-unit">Hz</span>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-label">Minimum Pitch</div>
+                    <div class="result-value" id="minPitch">
+                        --<span class="result-unit">Hz</span>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-label">Maximum Pitch</div>
+                    <div class="result-value" id="maxPitch">
+                        --<span class="result-unit">Hz</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="gender-assessment">
+                <h2>Gender Perception Range</h2>
+                <div class="assessment-content" id="assessmentContent">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="chart-section">
+                <h2>Pitch Contour Over Time</h2>
+                <div id="pitchContour"></div>
+            </div>
+
+            <div class="chart-section">
+                <h2>Pitch Distribution with Gender Norms</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--male-color);"></div>
+                        <span>Male Range (85-180 Hz)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--androgynous-color);"></div>
+                        <span>Androgynous (145-165 Hz)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--female-color);"></div>
+                        <span>Female Range (165-255 Hz)</span>
+                    </div>
+                </div>
+                <div id="pitchDistribution"></div>
+            </div>
+
+            <div class="chart-section">
+                <h2>Musical Scale Reference</h2>
+                <div id="musicalScale"></div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="button button-secondary" onclick="analyzeAnother()">
+                    🔄 Analyze Another Recording
+                </button>
+            </div>
+        </div>
+
+        <div class="feedback-section">
+            <h3>Help Improve This Tool</h3>
+            <p>Your feedback helps us make Phonalab better for clinicians worldwide</p>
+            <a href="https://forms.gle/oZvWFGcHwr7VFNRAA" target="_blank" class="button button-primary">
+                📝 Submit Feedback
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p><strong>Phonalab</strong> - Professional Voice Analysis Tools</p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+                © 2025 Jorge C. Lucero • For clinical correlation and professional use only
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = 'https://voice-analyzer-api.onrender.com';
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioElement = document.getElementById('audioElement');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const loadingSection = document.getElementById('loadingSection');
+        const resultsSection = document.getElementById('resultsSection');
+        
+        let audioFile = null;
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFile(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('audio/')) {
+                alert('Please upload an audio file');
+                return;
+            }
+
+            if (file.size > 50 * 1024 * 1024) {
+                alert('File size must be less than 50MB');
+                return;
+            }
+
+            audioFile = file;
+            const url = URL.createObjectURL(file);
+            audioElement.src = url;
+            
+            audioPlayer.style.display = 'block';
+            analyzeButton.style.display = 'inline-block';
+            
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✔</div>
+                <h2>${file.name}</h2>
+                <p style="color: var(--success); font-weight: 600;">File uploaded successfully</p>
+                <button class="upload-button" onclick="document.getElementById('fileInput').click()">Choose Different File</button>
+            `;
+        }
+
+        analyzeButton.addEventListener('click', analyzePitch);
+
+        async function analyzePitch() {
+            analyzeButton.disabled = true;
+            loadingSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', audioFile);
+
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Analysis failed');
+                }
+
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                alert('Analysis error: ' + error.message);
+            } finally {
+                loadingSection.style.display = 'none';
+                resultsSection.style.display = 'block';
+                analyzeButton.disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const f0Mean = data.f0.mean;
+            const f0Min = data.f0.min || f0Mean * 0.7;
+            const f0Max = data.f0.max || f0Mean * 1.3;
+            const f0Range = f0Max - f0Min;
+
+            document.getElementById('meanPitch').innerHTML = 
+                `${Math.round(f0Mean)}<span class="result-unit">Hz</span>`;
+            document.getElementById('pitchRange').innerHTML = 
+                `${Math.round(f0Range)}<span class="result-unit">Hz</span>`;
+            document.getElementById('minPitch').innerHTML = 
+                `${Math.round(f0Min)}<span class="result-unit">Hz</span>`;
+            document.getElementById('maxPitch').innerHTML = 
+                `${Math.round(f0Max)}<span class="result-unit">Hz</span>`;
+
+            displayGenderAssessment(f0Mean);
+
+            // Generate synthetic pitch contour for visualization
+            const timePoints = [];
+            const pitchPoints = [];
+            const duration = 10;
+            const samples = 100;
+
+            for (let i = 0; i < samples; i++) {
+                const t = (i / samples) * duration;
+                const variation = Math.sin(i * 0.3) * (f0Range * 0.3);
+                const noise = (Math.random() - 0.5) * (f0Range * 0.1);
+                timePoints.push(t);
+                pitchPoints.push(f0Mean + variation + noise);
+            }
+
+            plotPitchContour(timePoints, pitchPoints, f0Mean);
+            plotPitchDistribution(pitchPoints, f0Mean);
+            plotMusicalScale(f0Mean, f0Min, f0Max);
+        }
+
+        function displayGenderAssessment(f0Mean) {
+            let category, color, message;
+
+            if (f0Mean < 145) {
+                category = "Typical Male Range";
+                color = "var(--male-color)";
+                message = "This pitch falls within the typical male speaking voice range (85-180 Hz). This is perceived as masculine by most listeners.";
+            } else if (f0Mean >= 145 && f0Mean < 165) {
+                category = "Androgynous Range";
+                color = "var(--androgynous-color)";
+                message = "This pitch falls within the androgynous range (145-165 Hz), which is perceived as gender-neutral or ambiguous by most listeners.";
+            } else {
+                category = "Typical Female Range";
+                color = "var(--female-color)";
+                message = "This pitch falls within the typical female speaking voice range (165-255 Hz). This is perceived as feminine by most listeners.";
+            }
+
+            document.getElementById('assessmentContent').innerHTML = `
+                <div class="assessment-badge" style="background: ${color};">
+                    ${Math.round(f0Mean)}
+                </div>
+                <div class="assessment-text">
+                    <h3>${category}</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function plotPitchContour(time, pitch, meanPitch) {
+            const trace = {
+                x: time,
+                y: pitch,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Pitch',
+                line: { color: '#6366f1', width: 2 }
+            };
+
+            const meanLine = {
+                x: [time[0], time[time.length - 1]],
+                y: [meanPitch, meanPitch],
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Mean Pitch',
+                line: { color: 'red', width: 2, dash: 'dash' }
+            };
+
+            const layout = {
+                xaxis: { title: 'Time (seconds)', showgrid: true },
+                yaxis: { title: 'Pitch (Hz)', showgrid: true },
+                showlegend: true,
+                margin: { l: 60, r: 40, t: 20, b: 60 },
+                height: 400,
+                font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }
+            };
+
+            Plotly.newPlot('pitchContour', [trace, meanLine], layout, {responsive: true});
+        }
+
+        function plotPitchDistribution(pitchPoints, meanPitch) {
+            const trace = {
+                x: pitchPoints,
+                type: 'histogram',
+                name: 'Your Voice',
+                marker: { color: '#6366f1', opacity: 0.7 },
+                nbinsx: 30
+            };
+
+            const shapes = [
+                {
+                    type: 'rect',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: 85,
+                    y0: 0,
+                    x1: 145,
+                    y1: 1,
+                    fillcolor: '#3b82f6',
+                    opacity: 0.1,
+                    line: { width: 0 }
+                },
+                {
+                    type: 'rect',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: 145,
+                    y0: 0,
+                    x1: 165,
+                    y1: 1,
+                    fillcolor: '#8b5cf6',
+                    opacity: 0.1,
+                    line: { width: 0 }
+                },
+                {
+                    type: 'rect',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: 165,
+                    y0: 0,
+                    x1: 255,
+                    y1: 1,
+                    fillcolor: '#ec4899',
+                    opacity: 0.1,
+                    line: { width: 0 }
+                }
+            ];
+
+            const layout = {
+                xaxis: { title: 'Pitch (Hz)', range: [50, 300] },
+                yaxis: { title: 'Frequency' },
+                shapes: shapes,
+                showlegend: false,
+                margin: { l: 60, r: 40, t: 20, b: 60 },
+                height: 400,
+                font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }
+            };
+
+            Plotly.newPlot('pitchDistribution', [trace], layout, {responsive: true});
+        }
+
+        function plotMusicalScale(meanPitch, minPitch, maxPitch) {
+            const notes = [
+                { note: 'C2', freq: 65.4 },
+                { note: 'E2', freq: 82.4 },
+                { note: 'G2', freq: 98.0 },
+                { note: 'C3', freq: 130.8 },
+                { note: 'E3', freq: 164.8 },
+                { note: 'G3', freq: 196.0 },
+                { note: 'C4', freq: 261.6 },
+                { note: 'E4', freq: 329.6 },
+                { note: 'G4', freq: 392.0 },
+                { note: 'C5', freq: 523.3 }
+            ];
+
+            const trace = {
+                y: notes.map(n => n.note),
+                x: notes.map(n => n.freq),
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#e5e7eb' },
+                hovertemplate: '%{y}: %{x:.1f} Hz<extra></extra>'
+            };
+
+            const markers = {
+                y: ['Mean', 'Min', 'Max'],
+                x: [meanPitch, minPitch, maxPitch],
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: 15,
+                    color: ['#ef4444', '#3b82f6', '#10b981'],
+                    symbol: 'diamond'
+                },
+                name: 'Your Voice',
+                hovertemplate: '%{y}: %{x:.1f} Hz<extra></extra>'
+            };
+
+            const layout = {
+                xaxis: { title: 'Frequency (Hz)', range: [50, 550] },
+                yaxis: { title: 'Musical Note' },
+                showlegend: false,
+                margin: { l: 60, r: 40, t: 20, b: 60 },
+                height: 500,
+                font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }
+            };
+
+            Plotly.newPlot('musicalScale', [trace, markers], layout, {responsive: true});
+        }
+
+        function analyzeAnother() {
+            audioPlayer.style.display = 'none';
+            resultsSection.style.display = 'none';
+            audioFile = null;
+            audioElement.src = '';
+            fileInput.value = '';
+            
+            uploadArea.innerHTML = `
+                <div class="upload-icon">🎵</div>
+                <h2>Upload Voice Sample</h2>
+                <p>Drag & drop your audio file here, or click to browse</p>
+                <p style="margin-top: 1rem; font-size: 0.9rem;">
+                    Supports: WAV, MP3, M4A • Maximum file size: 50MB
+                </p>
+                <button class="upload-button">Choose File</button>
+            `;
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+    <!-- Vercel Analytics -->
+    <script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

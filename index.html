@@ -1137,10 +1137,10 @@
                 button.disabled = true;
                 
                 // Create a custom PDF request for pitch analysis
-                const pdfRequest = {
+                const pdfRequest = {                   
+                    report_type: "pitch",  // Indicate this is a pitch report
                     analysis_results: currentAnalysisResults,
-                    patient_info: null,
-                    report_type: "pitch"  // Indicate this is a pitch report
+                    patient_info: null
                 };
                 
                 const response = await fetch(`${API_URL}/generate-pdf`, {

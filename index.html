@@ -734,6 +734,9 @@
             </div>
 
             <div class="action-buttons">
+                <button class="button button-primary" onclick="downloadPDF()">
+                    📄 Download PDF Report
+                </button>
                 <button class="button button-secondary" onclick="analyzeAnother()">
                     🔄 Analyze Another Recording
                 </button>
@@ -769,6 +772,7 @@
         const resultsSection = document.getElementById('resultsSection');
         
         let audioFile = null;
+        let currentAnalysisResults = null;
 
         uploadArea.addEventListener('click', () => fileInput.click());
 
@@ -840,6 +844,9 @@
 
                 const data = await response.json();
                 console.log('API Response:', data);
+                
+                // Store results for PDF generation
+                currentAnalysisResults = data;
                 
                 displayResults(data);
                 
@@ -1093,6 +1100,7 @@
             audioPlayer.style.display = 'none';
             resultsSection.style.display = 'none';
             audioFile = null;
+            currentAnalysisResults = null;
             audioElement.src = '';
             fileInput.value = '';
             
@@ -1107,6 +1115,85 @@
             `;
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function downloadPDF() {
+            if (!currentAnalysisResults) {
+                alert('No analysis results available. Please analyze a voice recording first.');
+                return;
+            }
+            
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            try {
+                const button = document.querySelector('button[onclick="downloadPDF()"]');
+                
+                if (button.disabled) return;
+                
+                const originalText = button.textContent;
+                const originalBg = button.style.background;
+                
+                button.textContent = '⏳ Generating PDF...';
+                button.disabled = true;
+                
+                // Create a custom PDF request for pitch analysis
+                const pdfRequest = {
+                    analysis_results: currentAnalysisResults,
+                    patient_info: null,
+                    report_type: "pitch"  // Indicate this is a pitch report
+                };
+                
+                const response = await fetch(`${API_URL}/generate-pdf`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(pdfRequest)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const fileName = `pitch_analysis_${new Date().toISOString().slice(0,10)}.pdf`;
+                
+                if (isMobile) {
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } else {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }, 200);
+                }
+                
+                button.textContent = '✅ Downloaded!';
+                button.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = originalBg || '';
+                    button.disabled = false;
+                }, 2500);
+                
+            } catch (error) {
+                console.error('PDF Error:', error);
+                alert('Could not generate PDF: ' + error.message);
+                
+                const button = document.querySelector('button[onclick="downloadPDF()"]');
+                button.textContent = '📄 Download PDF Report';
+                button.style.background = '';
+                button.disabled = false;
+            }
         }
     </script>
     <!-- Vercel Analytics -->
